@@ -27,6 +27,7 @@ from functions import get_fluctuations
 from spectral_analysis import spectra_eps
 from structure_functions import structure_functions_epsilon
 from autocorrelation import autocorrelation
+print(os.getcwd())
 from flux_correction_FUNCTIONS import correct_fluxes, add_dynamic_sensible_heat
 
 #helper functions
@@ -202,11 +203,11 @@ def main_postprocess(
 #%% call for all data and every averaging intervall
 folder = Path(r"D:\HEFEXIII\Tower\L3\no_sectorwise")
 
-#windows = ["30min"]
-windows = ["2h", "30min", "5min", "1min"]
+windows = ["30min"]
+#windows = ["2h", "30min", "5min", "1min"]
 
 for w in windows:
-    
+    os.chdir(r"C:\Users\leopo\PhD\glacier_space\HEFEXIII_processing_code\turbulence_postprocessing")
     c_file = f"config_{w}_smartflux.txt"
     #c_file = f"config_{w}_smartflux_simpledetrend.txt"
     with open(c_file, "r") as f:
@@ -249,7 +250,7 @@ for w in windows:
             ds = ds.rename({"q_calc": "q"})
             
         #---- test time only ----
-        #ds = ds.sel(time = slice("2025-08-15 10:00", "2025-08-15 12:00"))
+        ds = ds.sel(time = slice("2025-08-15 10:00", "2025-08-15 12:00"))
     
         #empty storage lists
         spectra_list = []
@@ -304,7 +305,7 @@ for w in windows:
             
             
         
-        savepath = Path(r"D:\HEFEXIII\Tower\turbulence_processed")
+        savepath = Path(r"D:\HEFEXIII\Tower\turbulence_processed\test")
 
         filename_fluxes = f"fluxes_{w}.nc"
         filename_spectra = f"spectra_{w}.nc"

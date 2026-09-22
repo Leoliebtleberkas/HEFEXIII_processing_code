@@ -112,7 +112,7 @@ cmap = plt.get_cmap("Spectral_r")
 #colors = cmap(np.linspace(0.05, 0.95, 8))
 colors = cmap(np.concatenate([np.linspace(0.0, 0.3, 4), np.linspace(0.7, 1.0, 4)]))
 c_dict = {"0.5":colors[0], "1.0":colors[1], "2.0":colors[2], "3.0":colors[3],
-          "4.0":colors[4], "5.0":colors[5], "7.0":colors[6], "9.0":colors[7]}
+          "4.0":colors[4], "5.0":colors[5], "7.0":colors[6], "8.5":colors[7]}
 xticks = pd.date_range(start = "2025-08-07", end = "2025-09-03", freq = "4d")
 
 fig, axs = plt.subplots(nrows = 8, ncols = 1, figsize = (10,10), sharex = True)
@@ -126,7 +126,7 @@ for h in ds_tower_1h.heights:
              label = f"{h.values} m", color = color)
 ax0.set_xticks(xticks)
 ax0.set_xticklabels([])
-ax0.set_ylabel("Ts [°C]", fontsize = 12)
+ax0.set_ylabel("$T$ (°C)", fontsize = 12)
 ax0.grid(linestyle = "dashed", which = "both")
 #ax0.set_title("air temperature", fontsize = 15)
 
@@ -139,7 +139,7 @@ for h in ds_tower_1h.heights:
              label = f"{h.values} m", color = color)
 ax1.set_xticks(xticks)
 ax1.set_xticklabels([])
-ax1.set_ylabel("RH [%]", fontsize = 12)
+ax1.set_ylabel("RH (%)", fontsize = 12)
 ax1.grid(linestyle = "dashed", which = "both")
 #ax1.set_title("relative humidity", fontsize = 15)
 
@@ -149,7 +149,7 @@ for h in ds_tower_1h.heights:
     color = c_dict[str(h.values)]
     ax2.plot(ds_tower_1h.time, ds_tower_1h.Wspd.sel(heights = h), linewidth = 1.5, 
              label = f"{h.values} m", color = color)
-ax2.set_ylabel("$\overline{U}$ [$m s^{-1}$]", fontsize = 12)
+ax2.set_ylabel(r"$\overline{U}$ ($\mathrm{m\,s^{-1}}$)", fontsize = 12)
 #axes limits
 ax2.set_xticks(xticks)
 ax2.set_ylim([0, 8])
@@ -165,7 +165,7 @@ for h in ds_tower_1h.heights:
                 label = f"{h.values} m", color = color, s = 2)
 #axes labels
 ax3.set_xticks(xticks)
-ax3.set_ylabel("deg. [°]", fontsize = 12)
+ax3.set_ylabel(r"wind dir (°)", fontsize = 12)
 ax3.set_ylim([0, 360])
 ax3.set_yticks([0, 90, 180, 270, 360])
 #ax3.set_title("wind direction", fontsize = 15)
@@ -185,7 +185,7 @@ for h in ds_flux_1h.heights:
              label = f"{h.values} m", color = color)
 ax4.set_ylim([-130, 20])
 #ax4.set_ylabel("$K m^{-1}$", fontsize = 14)
-ax4.set_ylabel("H [$W m^{-2}$]", fontsize = 12)
+ax4.set_ylabel(r"$H$ ($\mathrm{W\,m^{-2}}$)", fontsize = 12)
 #ax4.set_title("sensible heat flux H", fontsize = 15)
 ax4.set_xticks(xticks)
 
@@ -196,7 +196,7 @@ for h in ds_flux_1h.heights:
     ax5.plot(ds_flux_1h.time, ds_flux_1h["LE"].sel(heights = h), #LE_corr
              linewidth = 1.5,
              label = f"{h.values} m", color = color)
-ax5.set_ylabel("LE [$W m^{-2}$]", fontsize = 12)
+ax5.set_ylabel(r"$LE$ ($\mathrm{W\,m^{-2}}$)", fontsize = 12)
 #ax5.set_title("latent heat flux LE", fontsize = 15)
 ax5.set_xticks(xticks)
 
@@ -207,7 +207,7 @@ for h in ds_flux_1h.heights:
     ax6.plot(ds_flux_1h.time, ds_flux_1h.uw.sel(heights = h),
              linewidth = 1.5,
              label = f"{h.values} m", color = color)
-ax6.set_ylabel("$\overline{u'w'}$ [$m^{2} s^{-2}$]", fontsize = 12)
+ax6.set_ylabel(r"$\overline{u'w'}$ ($\mathrm{m^2\,s^{-2}}$)", fontsize = 12)
 #ax6.set_title("horizontal momentum flux", fontsize = 15)
 ax6.set_xticks(xticks)
 
@@ -217,7 +217,7 @@ for h in ds_flux_1h.heights:
     color = c_dict[str(h.values)]
     ax7.plot(ds_flux_1h.time, ds_flux_1h.tke.sel(heights = h), linewidth = 1.5, 
              label = f"{h.values} m", color = color)
-ax7.set_ylabel("TKE [$m^2 s^{-2}$]", fontsize = 12)
+ax7.set_ylabel(r"TKE ($\mathrm{m^2\,s^{-2}}$)", fontsize = 12)
 #ax7.set_title("turbulent kinetic energy", fontsize = 15)
 ax7.set_xticks(xticks)
 #xticklabel of
@@ -318,11 +318,13 @@ df_sthe["v"] = v_sthe.magnitude
 df_ihe_wind["u"] = u_ihe.magnitude
 df_ihe_wind["v"] = v_ihe.magnitude
 
-df_sthe_h = df_sthe.resample("1h").mean()
-df_sthe_precip_h = df_sthe_precip.resample("1h").sum()
+df_sthe_h = df_sthe.resample("1h", closed = "right", label = "right").mean()
+df_sthe_precip_h = df_sthe_precip.resample("1h", closed = "right", label = "right").sum()
+df_sthe_precip_12h = df_sthe_precip.resample("12h", closed = "right", label = "right").sum()
 
-df_ihe_h = df_ihe.resample("1h").mean()
-df_ihe_wind_h = df_ihe_wind.resample("1h").mean()
+df_ihe_h = df_ihe.resample("1h", closed = "right", label = "right").mean()
+df_ihe_wind_h = df_ihe_wind.resample("1h", closed = "right", label = "right").mean()
+
 
 #calculate wind direction again
 df_sthe_h["wdir"] = wind_direction(df_sthe_h["u"].values*units("m/s"), 
@@ -332,6 +334,8 @@ df_ihe_wind_h["wdir"] = wind_direction(df_ihe_wind_h["u"].values*units("m/s"),
 
 #%%accumulated precip
 df_sthe_precip["precip_acc12"] = df_sthe_precip["accumulated_total_nrt"].rolling("12h").sum()
+
+
 #%%plot station hintereis
 xticks = pd.date_range(start = "2025-08-07", end = "2025-09-03", freq = "4d")
 fig, axs = plt.subplots(nrows = 5, ncols = 1, figsize = (10, 8))
@@ -339,7 +343,7 @@ fig, axs = plt.subplots(nrows = 5, ncols = 1, figsize = (10, 8))
 #radiation
 ax0 = axs[0]
 ax0.plot(df_sthe_h.index, df_sthe_h["swin_avg"], linewidth = 2, color = "blue")
-ax0.set_ylabel("$W m^{-2}$", fontsize = 14)
+ax0.set_ylabel("$SW_{in} (\mathrm{W m^{-2}})$", fontsize = 14)
 #ax0.set_title("incoming shortwave radiation", fontsize = 15)
 
 
@@ -351,7 +355,7 @@ ax1.plot(df_sthe_h.index, df_sthe_h["tair_avg"], linewidth = 2, color = "blue",
 #iHE
 ax1.plot(df_ihe_h.index, df_ihe_h["taact_2m_avg"], linewidth = 2, color = "orange",
          label = "iHE, 5.5 m")
-ax1.set_ylabel("[°C]", fontsize = 14)
+ax1.set_ylabel("$T$ (°C)", fontsize = 14)
 #ax1.legend(loc = "upper right")
 ax1.set_yticks([0, 5, 10, 15])
 #ax1.set_title("air temperature", fontsize = 15)
@@ -366,7 +370,7 @@ ax2.plot(df_sthe_h.index, df_sthe_h["wspeed"], color = "blue", #label = "wind sp
 ax2.plot(df_ihe_wind_h.index, df_ihe_wind_h["windspeed_act_3"], 
          color = "orange", label = "iHE, 6 m") #label = "wind speed",
 #ax2.plot(df.index, df["wspeed_max"], color = "r", label = "max. gust")
-ax2.set_ylabel("$[m s^{-1}]$", fontsize = 14)
+ax2.set_ylabel(r"$\overline{U}$ ($\mathrm{m\,s^{-1}}$)", fontsize = 14)
 ax2.set_yticks([0, 5, 10, 15, 20])
 ax2.set_ylim(0, 20)
 #ax2.legend(loc = "upper right")
@@ -379,7 +383,7 @@ ax3.scatter(df_sthe_h.index, df_sthe_h["wdir"], color = "blue",# label = "wind d
 #iHE
 ax3.scatter(df_ihe_wind_h.index, df_ihe_wind_h["winddir_act_3"], 
          color = "orange", s = 3, label = "wind speed")#, label = "iHE, 6 m")
-ax3.set_ylabel("[°]", fontsize = 14)
+ax3.set_ylabel("wind dir (°)", fontsize = 14)
 #ax3.set_xticks(xticks)
 ax3.set_xticklabels([])
 ax3.set_yticks([0, 90, 180, 270, 360])
@@ -391,7 +395,7 @@ ax3.set_ylim(0, 360)
 ax4 = axs[4]
 ax4.plot(df_sthe_precip.index, df_sthe_precip["accumulated_total_nrt"], 
          linewidth = 2, color = "blue")
-ax4.set_ylabel("$[mm / 12h]$", fontsize = 14)
+ax4.set_ylabel("precip (mm / 12h)", fontsize = 14)
 #ax4.set_title("12 hour accumulated precipitation", fontsize = 15)
 
 for ax in fig.axes:
@@ -401,6 +405,7 @@ for ax in fig.axes:
     
     #yticks
     ax.tick_params(axis="y", labelsize=12)
+    ax.yaxis.set_label_coords(-0.06, 0.5)
     
     #add IOP's
     ax.axvspan(pd.to_datetime("2025-08-07 03:00"), pd.to_datetime("2025-08-10 08:00"),
@@ -449,8 +454,8 @@ c1_end = "2025-08-22 08:00"
 c2_start = "2025-08-27"
 c2_end = "2025-08-30 17:00"
 
-sum1 = df_precip["accumulated_nrt"][c1_start:c1_end].sum()
-sum2 = df_precip["accumulated_nrt"][c2_start:c2_end].sum()
+sum1 = df_sthe_precip["accumulated_nrt"][c1_start:c1_end].sum()
+sum2 = df_sthe_precip["accumulated_nrt"][c2_start:c2_end].sum()
 
 print(sum1)
 print(sum2)

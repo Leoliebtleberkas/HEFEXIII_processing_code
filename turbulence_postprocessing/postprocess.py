@@ -208,6 +208,10 @@ def fill_gaps(ds, config, count_nans=True, add_missing_timesteps=False):
             group = group.ffill(dim = "time", limit = 5)
 
         # take care of residual nans
+        
+        #auskommentieren für code testing nach Ivas kommentar, 
+        #dass gap filling mit mean nicht gut ist
+        
         for var in var_list:
             if (np.isnan(group[var])).sum() > 0:
                 # put to mean what is still nan after interpolate
@@ -224,6 +228,7 @@ def fill_gaps(ds, config, count_nans=True, add_missing_timesteps=False):
                         )
                     )
                     #nan_warned = True
+            
         gap_fill.append(group)
 
     # reconcatenate
