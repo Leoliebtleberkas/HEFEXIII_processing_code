@@ -97,7 +97,7 @@ for var in var_to_avg:
 fig, axs = plt.subplots(nrows = 2, figsize = (10, 4))
 ax = axs[0]
 ax.plot(ds_tower_10min.time, ds_tower_10min["RH"].sel(heights = 1))
-ax.plot(ds_tower_10min.time, ds_tower_10min["RH"].sel(heights = 9), color = "r")
+ax.plot(ds_tower_10min.time, ds_tower_10min["RH"].sel(heights = 8.5), color = "r")
 ax1 = axs[1]
 ax1.plot(ds_tower_10min.time, ds_tower_10min["q"].sel(heights = 1))
 

@@ -3,117 +3,11 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
-import os 
-from pathlib import Path
-os.chdir(r"C:\Users\leopo\PhD\glacier_space\HEFEXIII_processing_code\turbulence_postprocessing")
+
 from functions import get_fluctuations, detrend_runmean
-from spectral_analysis import spectra_eps
-from structure_functions import structure_functions_epsilon
-from autocorrelation import autocorrelation
-from MRD_functions import multiresolution
-os.chdir(r"C:\Users\leopo\PhD\glacier_space\HEFEXIII_processing_code\helper_functions")
-from planarfit_xr_functions import execute_planar_fit
-#from postprocess_plots import plot_despiking_corrections
 import warnings
 
-#%%
-
-
-# Run routine
-def postprocess(ds, config):
-    """Function to postprocess the data from sonic anemometers.
-    originally written by Samuele Mosso, University of Innsbruck, 
-    adapted by Leopold Schlagbauer, University of Innsbruck
-        INPUT:
-            ds:  to be an xarray dataset, with the variables u,v,w and tc, and dimensions time and heights.
-            If only one height is present, provide a dimension heights with length one, since the height is needed for
-            spectral cutoff determination.
-            config: configuration dictionary with following entries:
-                'window': window size for averaging, in the form 'nmin' with n integer
-                'avg_method': 'detrend' or 'block' for linear detrending or block averaging
-                'gap_filling': gap filling method, only 'interp' supported for now
-                'spectra': boolean, compute the spectra
-                'strfun': boolean, compute the 2nd order structure functions
-                'autocorr': boolean, compute the autocorrelation functions
-                'MRD': boolean, compute the multiresolution flux decompositions
-
-        OUTPUT: a dictionary with the following keys:
-            'stats': dataset with the statistics like reynolds stress tensor ecc.
-            'spectra': dataset with the spectra
-            'strfun': dataset with the second order structure functions
-            'autocorr': dataset with the autocorrelation functions
-            'MRD': dataset with the multiresolution flux decompositions
-    """
-
-    # handle single sonic
-    if "heights" not in ds.coords:
-        ds = ds.assign_coords(heights=[1])
-        warnings.warn(
-            "Dimension heights was not present, added with fake value, this will cause an imprecise"
-            " determination of the cutoff in spectral frequency"
-        )
-
-    results = {}
-    # gap_filling
-    ds, nan_perc = fill_gaps(ds, config)
-
-    #rotation method
-    # double rotation
-    if config["rotation"] == "double_rotation":
-        ds, rotation = double_rotation(ds, config)
-    elif config["rotation"] == "planar_fit":
-        uvw_raw = ds[["u", "v", "w", "Ts"]].copy()
-        #ds_planeonly is without y-rotation, ds is with all 3 rotations
-        #rotation is dictionary with all 3 rotation angles
-        ds = execute_planar_fit(uvw_raw, averaging_intervall = config["window"], 
-                             ret = True)
-    elif config["rotation"] == "no":
-        warnings.warn("Proceed without rotation, only valid if dataset \
-                      contains already rotated data!")
-        ds = ds
-
-    # fluxes calculation - also includes detrending (or block averaging)
-    fluxes = fluxes_calculation(ds, config)
-
-    # stationarity
-    stat = stationarity(ds, config)
-    # merge
-    statistics = xr.merge([fluxes, rotation, stat, nan_perc])
-
-    # spectra
-    if config["spectra"]:
-        spectra, epsilon, slopes = spectra_eps(ds, config, fluxes.meanU)
-        statistics = xr.merge([statistics, epsilon, slopes])
-        results["spectra"] = spectra
-
-    # structure functions
-    if config["strfun"]:
-        strfun, epsilon = structure_functions_epsilon(ds, config, fluxes.meanU)
-        statistics = xr.merge([statistics, epsilon])
-        results["strfun"] = strfun
-
-    # autocorrelation
-    if config["autocorr"]:
-        autocorr, intlen = autocorrelation(ds, config, fluxes.meanU)
-        statistics = xr.merge([statistics, intlen])
-        results["autocorr"] = autocorr
-
-    # MRDs
-    if config["MRD"]:
-        mrd = multiresolution(ds, config)
-        results["MRD"] = mrd
-
-    # put to nan the zeros in empty data
-    statistics = statistics.where(statistics.meanU > 0)
-
-    # create results dictionary
-    results["stats"] = statistics
-    return results
-
-
-# --------------------
-# Statistics functions
-# --------------------
+#%% helper functions for postprocessing
 
 
 def make_time_regular(
@@ -158,21 +52,59 @@ def make_time_regular(
     ds = ds.reindex(time = time_final)
     
     return ds
+
+
+# --- new from ECpy ---
+
+def fillnan_xr(group, filldt):
+    """
+    Replaces NaN in xarray Dataset with random samples from a Gauss distribution
+    using the mean and standard deviation within an averaging period.
+    Handles (time, height) dimensions independently per height.
+
+    INPUT:
+    group   ... xarray Dataset with dims (time, height)
+    filldt  ... averaging period string (e.g. "30min")
+
+    OUTPUT:
+    group   ... Dataset with NaNs replaced
+    """
+    result = group.copy()
+    
+    for h in group.heights.values:
+        group_h = group.sel(heights=h)
+        
+        # mean and std over filldt window, reindexed back to original time axis
+        mn = (group_h.resample(time=filldt, label="right", closed="right")
+                     .mean()
+                     .reindex(time=group_h.time)
+                     .ffill(dim="time"))
+        
+        std = (group_h.resample(time=filldt, label="right", closed="right")
+                      .std()
+                      .reindex(time=group_h.time)
+                      .ffill(dim="time"))
+        
+        for var in group.data_vars:
+            data = group_h[var].values
+            nan_mask = np.isnan(data)
+            
+            if not nan_mask.any():
+                continue
+            
+            rn = np.random.normal(loc=0.0, scale=1.0, size=data.shape)
+            fakevals = mn[var].values + rn * std[var].values
+            
+            data[nan_mask] = fakevals[nan_mask]
+            result[var].loc[dict(heights=h)] = data
+    
+    return result
     
 
 def fill_gaps(ds, config, count_nans=True, add_missing_timesteps=False):
     # config
     window = config["window"]
     method = config["gap_filling"]
-
-    # check method
-    if method != "interp":
-        warnings.warn(
-            "Gap filling method {} not recognized, will use interpolation".format(
-                method
-            )
-        )
-        method = "interp"
         
     #reindex ds to account for entirely missing timesteps
     if add_missing_timesteps:
@@ -194,24 +126,38 @@ def fill_gaps(ds, config, count_nans=True, add_missing_timesteps=False):
             nan_array = nan_array | np.invert(np.isfinite(group[var]))
         nans.append(nan_array)
         
-        # FILL GAPS
         # remove infs
         for var in var_list:
             group[var] = group[var].where(np.isfinite(group[var]), other=np.nan)
 
         # gap filling
         if method == "interp":
+            
             group = group.interpolate_na(dim="time", limit=10) #ORIGINAL 10
             #bfill and ffill for data edges
             
             group = group.bfill(dim = "time", limit = 5)
             group = group.ffill(dim = "time", limit = 5)
+            
+        elif method == "gauss":
+            
+            group = fillnan_xr(group, filldt = window)
+            
+        else:
+            
+            warnings.warn(
+                "Gap filling method {} not recognized, will use gaussan noise".format(
+                    method
+                )
+            )
+            group = fillnan_xr(group, filldt = window)
 
         # take care of residual nans
         
         #auskommentieren für code testing nach Ivas kommentar, 
         #dass gap filling mit mean nicht gut ist
         
+        '''
         for var in var_list:
             if (np.isnan(group[var])).sum() > 0:
                 # put to mean what is still nan after interpolate
@@ -228,6 +174,7 @@ def fill_gaps(ds, config, count_nans=True, add_missing_timesteps=False):
                         )
                     )
                     #nan_warned = True
+        '''
             
         gap_fill.append(group)
 
@@ -279,6 +226,11 @@ def double_rotation(ds, config, return_rotation=True):
         return ds, rotation
     else:
         return ds
+
+
+# --------------------
+# Statistics functions
+# --------------------
 
 
 def fluxes_calculation(ds, config, third="all", fourth="main"):

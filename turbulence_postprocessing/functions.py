@@ -102,7 +102,7 @@ def detrend_runmean(ds, config):
 
     return ds_detrend, ds_runmean
 
-def detrend(ds, window):
+def detrend_old(ds, window):
     ds_groups = ds.resample(time=window, label = "right", 
                             closed = "right")
     group_list = []
@@ -114,6 +114,28 @@ def detrend(ds, window):
         #original
         #group_list.append(group.map(signal.detrend, args=[0])) 
 
+
+    return xr.concat(group_list, dim='time')
+
+def detrend(ds, window):
+    ds_groups = ds.resample(time=window, label="right", closed="right")
+    group_list = []
+
+    for label, group in ds_groups:
+        detrended_heights = []
+        for h in group.heights.values:
+            group_h = group.sel(heights=h)
+            valid = group_h.dropna(dim="time", how="any")
+            
+            if len(valid.time) < 2:
+                detrended_heights.append(group_h * np.nan)
+                continue
+            
+            detrended = valid.map(signal.detrend, type="linear", axis=0)
+            detrended = detrended.reindex(time=group_h.time)
+            detrended_heights.append(detrended)
+        
+        group_list.append(xr.concat(detrended_heights, dim="heights"))
 
     return xr.concat(group_list, dim='time')
 

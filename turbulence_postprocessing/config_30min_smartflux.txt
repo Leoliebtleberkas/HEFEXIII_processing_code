@@ -1,1 +1,1 @@
-{"window": "30min", "rotation": false, "avg_method": "detrend_2step", "runmean_heights": [0.5, 1.0], "runmean_nsample": [1200, 1200], "gap_filling": "interp", "spectra": true, "strfun": true, "autocorr": false, "MRD": false, "var_rename": {"Ts": "tc"}}
+{"window": "30min", "rotation": false, "avg_method": "detrend_2step", "runmean_heights": [0.5, 1.0], "runmean_nsample": [1200, 1200], "gap_filling": "gauss", "spectra": true, "strfun": true, "autocorr": false, "MRD": false, "var_rename": {"Ts": "tc"}}

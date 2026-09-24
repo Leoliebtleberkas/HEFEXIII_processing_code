@@ -118,7 +118,7 @@ def calc_Lv(
 #get addtional data
 def get_additional_data(
         folder = r"D:\HEFEXIII\Tower\L3\no_sectorwise",
-        file = r"smartflux_L3_20Hz_30min.nc"
+        file = r"metek_L3_20Hz_smartflux.nc"
 ):
     
     ds_orig = xr.open_dataset(Path(folder) / file)

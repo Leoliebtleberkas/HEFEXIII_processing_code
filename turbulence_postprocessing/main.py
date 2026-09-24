@@ -19,11 +19,12 @@ import pandas as pd
 import warnings
 from pathlib import Path
 import json
-from postprocess import (fill_gaps, double_rotation, 
+from postprocess_helpers import (fill_gaps, double_rotation, 
                          calc_cov, make_time_regular,
-                         fluxes_calculation, multiresolution, stationarity,
+                         fluxes_calculation, stationarity,
                          stationarity_new, stationarity_new_mean)
 from functions import get_fluctuations
+from MRD_functions import multiresolution
 from spectral_analysis import spectra_eps
 from structure_functions import structure_functions_epsilon
 from autocorrelation import autocorrelation
@@ -68,6 +69,29 @@ def inf_counter(ds):
 def main_postprocess(
         ds, config
 ):
+    """Function to postprocess the data from sonic anemometers.
+    originally written by Samuele Mosso, University of Innsbruck, 
+    adapted by Leopold Schlagbauer, University of Innsbruck
+        INPUT:
+            ds:  to be an xarray dataset, with the variables u,v,w and tc, and dimensions time and heights.
+            If only one height is present, provide a dimension heights with length one, since the height is needed for
+            spectral cutoff determination.
+            config: configuration dictionary with following entries:
+                'window': window size for averaging, in the form 'nmin' with n integer
+                'avg_method': 'detrend' or 'block' for linear detrending or block averaging
+                'gap_filling': gap filling method, only 'interp' supported for now
+                'spectra': boolean, compute the spectra
+                'strfun': boolean, compute the 2nd order structure functions
+                'autocorr': boolean, compute the autocorrelation functions
+                'MRD': boolean, compute the multiresolution flux decompositions
+
+        OUTPUT: a dictionary with the following keys:
+            'stats': dataset with the statistics like reynolds stress tensor ecc.
+            'spectra': dataset with the spectra
+            'strfun': dataset with the second order structure functions
+            'autocorr': dataset with the autocorrelation functions
+            'MRD': dataset with the multiresolution flux decompositions
+    """
   
     #print("NaNs raw data: ")
     #nan_counter(ds)
@@ -237,7 +261,7 @@ for w in windows:
     #loop over datasets
     #for ds, freq in zip([ds_20, ds_30], ["20Hz", "30Hz"]):
     #for ds, freq in zip([ds_20, ds_smart], ["20Hz", "20Hz"]):
-    for file, freq in zip([d_file_20, d_file_smart], ["20Hz", "20Hz"]):
+    for file, freq in zip([d_file_20], ["20Hz"]):
     
         #read data
         ds = xr.open_dataset(folder / file)
@@ -250,7 +274,8 @@ for w in windows:
             ds = ds.rename({"q_calc": "q"})
             
         #---- test time only ----
-        ds = ds.sel(time = slice("2025-08-15 10:00", "2025-08-15 12:00"))
+        #ds = ds.sel(time = slice("2025-08-15 11:00", "2025-08-15 12:00"))
+        #ds = ds.sel(time = "2025-08-15")
     
         #empty storage lists
         spectra_list = []
@@ -284,7 +309,7 @@ for w in windows:
         ds_spectra = xr.concat(spectra_list, dim = "time")
         
         #smartflux_path = Path(fr"D:\HEFEXIII\Tower\L3\no_sectorwise\smartflux_L3_20Hz_{w}.nc")
-        smartflux_path = Path(fr"D:\HEFEXIII\Tower\L3\no_sectorwise\smartflux_L3_20Hz_30min.nc")
+        smartflux_path = Path(fr"D:\HEFEXIII\Tower\L3\no_sectorwise\metek_L3_20Hz_smartflux.nc")
         #if Path.exists(smartflux_path):
         #    ds_fluxes["H"] = add_dynamic_sensible_heat(ds_fluxes["wT"], 
         #                                               smartflux_path, window=w)
@@ -305,15 +330,15 @@ for w in windows:
             
             
         
-        savepath = Path(r"D:\HEFEXIII\Tower\turbulence_processed\test")
+        savepath = Path(r"D:\HEFEXIII\Tower\turbulence_processed")
 
-        filename_fluxes = f"fluxes_{w}.nc"
-        filename_spectra = f"spectra_{w}.nc"
-        filename_stationarity = f"stationarity_{w}.nc"
+        filename_fluxes = f"fluxes_{w}_gauss.nc"
+        filename_spectra = f"spectra_{w}_gauss.nc"
+        filename_stationarity = f"stationarity_{w}_gauss.nc"
         if "q" in data_vars:
-            filename_fluxes = f"fluxes_{w}_smart.nc"
-            filename_spectra = f"spectra_{w}_smart.nc"
-            filename_stationarity = f"stationarity_{w}_smart.nc"
+            filename_fluxes = f"fluxes_{w}_smart_gauss.nc"
+            filename_spectra = f"spectra_{w}_smart_gauss.nc"
+            filename_stationarity = f"stationarity_{w}_smart_gauss.nc"
 
         ds_fluxes.to_netcdf(savepath / fr"{w}_avg" / filename_fluxes)
         ds_spectra.to_netcdf(savepath / fr"{w}_avg" / filename_spectra)
